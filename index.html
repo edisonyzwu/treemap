@@ -2,18 +2,35 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Animated Treemap with Shrinking Effect</title>
+    <title>Animated Treemap with Shrinking Effect and Fixed Margin</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
       body {
         font-family: sans-serif;
+        color: white;
+        margin: 0;
+        padding: 20px;
+        background: #ffffff;
       }
-      #chart {
+      #container {
+        width: 960px;
+        height: 600px;
         position: relative;
-        background: #f9f9f9;
+        margin: 0 auto;
+        background: hsl(0, 0%, 100%);
+        border: 2px dashed #666565;
+        overflow: hidden;
+      }
+
+      #chart {
+        position: absolute;
+        top: 0;
+        left: 0;
+        background: #dfdfdf;
         overflow: hidden;
         transition: width 1s, height 1s;
       }
+
       .node {
         box-sizing: border-box;
         position: absolute;
@@ -25,12 +42,16 @@
       }
       .label {
         font-size: 12px;
-        padding: 4px;
+        font-weight: 500;
+        padding: 6px;
+        word-break: break-word;
       }
     </style>
   </head>
   <body>
-    <div id="chart" style="width: 960px; height: 600px"></div>
+    <div id="container">
+      <div id="chart" style="width: 960px; height: 600px"></div>
+    </div>
 
     <script>
       const data = {
@@ -58,6 +79,7 @@
       treemapLayout(root);
 
       const chart = d3.select("#chart");
+      const myColors = ["#4F81BD", "#C0504D", "#9BBB59", "#8064A2", "#F79646"];
 
       let nodes = chart
         .selectAll(".node")
@@ -68,20 +90,18 @@
         .style("top", (d) => d.y0 + "px")
         .style("width", (d) => d.x1 - d.x0 + "px")
         .style("height", (d) => d.y1 - d.y0 + "px")
-        .style("background", (d, i) => d3.schemeCategory10[i % 10])
+        .style("background", (d, i) => myColors[i % myColors.length])
         .style("opacity", 1)
         .append("div")
         .attr("class", "label")
         .text((d) => d.data.name + ": $" + d.data.value.toLocaleString());
 
       chart.on("click", () => {
-        // Filter out the big blue one
         const newChildren = data.children.filter(
           (d) => d.name !== "U.S. Department of State Congressional Allocation"
         );
         const newTotal = d3.sum(newChildren, (d) => d.value);
 
-        // Calculate new dimensions
         const scale = Math.sqrt(newTotal / originalTotal);
         const newWidth = width * scale;
         const newHeight = height * scale;
@@ -93,19 +113,17 @@
 
         d3.treemap().size([newWidth, newHeight]).padding(2)(newRoot);
 
-        // Resize chart div
         chart
           .transition()
-          .duration(1000)
+          .duration(1500)
           .style("width", newWidth + "px")
           .style("height", newHeight + "px");
 
-        // Update nodes
         const update = chart.selectAll(".node").data(newRoot.leaves(), (d) => d.data.name);
 
         update
           .transition()
-          .duration(1000)
+          .duration(1500)
           .style("left", (d) => d.x0 + "px")
           .style("top", (d) => d.y0 + "px")
           .style("width", (d) => d.x1 - d.x0 + "px")
@@ -116,8 +134,9 @@
 
         update.exit().transition().duration(500).style("opacity", 0).remove();
 
-        // Remove click handler after first click
         chart.on("click", null);
+
+        d3.selectAll(".node").style("cursor", "default").on("mouseover", null).on("mouseout", null);
       });
     </script>
   </body>

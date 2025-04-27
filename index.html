@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Animated Treemap with Shrinking Effect</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+      #chart {
+        position: relative;
+        background: #f9f9f9;
+        overflow: hidden;
+        transition: width 1s, height 1s;
+      }
+      .node {
+        box-sizing: border-box;
+        position: absolute;
+        overflow: hidden;
+      }
+      .node:hover {
+        opacity: 0.8;
+        cursor: pointer;
+      }
+      .label {
+        font-size: 12px;
+        padding: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="chart" style="width: 960px; height: 600px"></div>
+
+    <script>
+      const data = {
+        name: "funding",
+        children: [
+          {name: "U.S. Department of State Congressional Allocation", value: 274000000},
+          {name: "U.S. Private Sector Direct Financial and In-Kind Support", value: 57663775},
+          {name: "Foreign Government Direct Financial and In-Kind Support", value: 73513592},
+          {name: "Foreign Private Direct Financial and In-Kind Support", value: 13575680},
+          {name: "U.S. Department of Education, Congressional Allocation", value: 8811000},
+        ],
+      };
+
+      let width = 960;
+      let height = 600;
+      const originalTotal = d3.sum(data.children, (d) => d.value);
+
+      const treemapLayout = d3.treemap().size([width, height]).padding(2);
+
+      let root = d3
+        .hierarchy(data)
+        .sum((d) => d.value)
+        .sort((a, b) => b.value - a.value);
+
+      treemapLayout(root);
+
+      const chart = d3.select("#chart");
+
+      let nodes = chart
+        .selectAll(".node")
+        .data(root.leaves())
+        .join("div")
+        .attr("class", "node")
+        .style("left", (d) => d.x0 + "px")
+        .style("top", (d) => d.y0 + "px")
+        .style("width", (d) => d.x1 - d.x0 + "px")
+        .style("height", (d) => d.y1 - d.y0 + "px")
+        .style("background", (d, i) => d3.schemeCategory10[i % 10])
+        .style("opacity", 1)
+        .append("div")
+        .attr("class", "label")
+        .text((d) => d.data.name + ": $" + d.data.value.toLocaleString());
+
+      chart.on("click", () => {
+        // Filter out the big blue one
+        const newChildren = data.children.filter(
+          (d) => d.name !== "U.S. Department of State Congressional Allocation"
+        );
+        const newTotal = d3.sum(newChildren, (d) => d.value);
+
+        // Calculate new dimensions
+        const scale = Math.sqrt(newTotal / originalTotal);
+        const newWidth = width * scale;
+        const newHeight = height * scale;
+
+        const newRoot = d3
+          .hierarchy({name: "funding", children: newChildren})
+          .sum((d) => d.value)
+          .sort((a, b) => b.value - a.value);
+
+        d3.treemap().size([newWidth, newHeight]).padding(2)(newRoot);
+
+        // Resize chart div
+        chart
+          .transition()
+          .duration(1000)
+          .style("width", newWidth + "px")
+          .style("height", newHeight + "px");
+
+        // Update nodes
+        const update = chart.selectAll(".node").data(newRoot.leaves(), (d) => d.data.name);
+
+        update
+          .transition()
+          .duration(1000)
+          .style("left", (d) => d.x0 + "px")
+          .style("top", (d) => d.y0 + "px")
+          .style("width", (d) => d.x1 - d.x0 + "px")
+          .style("height", (d) => d.y1 - d.y0 + "px")
+          .style("opacity", 1)
+          .select(".label")
+          .text((d) => d.data.name + ": $" + d.data.value.toLocaleString());
+
+        update.exit().transition().duration(500).style("opacity", 0).remove();
+
+        // Remove click handler after first click
+        chart.on("click", null);
+      });
+    </script>
+  </body>
+</html>
